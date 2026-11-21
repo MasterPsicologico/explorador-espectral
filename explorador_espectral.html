@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<title>Explorador Espectral</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101e30;--line:#243950;--cyan:#54d8ff;--muted:#9bb0c5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#17334c 0,#07111f 48%);color:#eef7ff;font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:760px;margin:auto;padding:18px 14px 36px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:4px 0 16px}
+h1{font-size:21px;margin:0;letter-spacing:.3px}.sub{font-size:12px;color:var(--muted);margin-top:4px}
+.pill{border:1px solid #28516a;color:#8fe5ff;padding:6px 9px;border-radius:30px;font-size:11px;white-space:nowrap}
+.panel{background:linear-gradient(145deg,#12243a,#0c1929);border:1px solid var(--line);border-radius:17px;padding:14px;margin:12px 0;box-shadow:0 10px 28px #0003}
+.preview{position:relative;background:#02070d;border-radius:13px;overflow:hidden;aspect-ratio:4/3;display:grid;place-items:center}
+video,canvas#view{position:absolute;width:100%;height:100%;object-fit:cover;inset:0}
+#view{display:none}.placeholder{text-align:center;color:#9bb0c5;padding:22px}.placeholder b{display:block;color:#eaf8ff;margin:8px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+button,select{border:1px solid #31506b;background:#172b40;color:#effaff;border-radius:11px;padding:11px 13px;font:inherit}
+button.primary{background:#087eaa;border-color:#159dcb;font-weight:650;flex:1}
+button:disabled{opacity:.45}
+.status{font-size:12px;color:var(--muted);margin-top:9px;min-height:18px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.metric{background:#0a1726;border:1px solid #20364d;border-radius:12px;padding:11px}
+.metric small{color:var(--muted);display:block;font-size:11px}.metric strong{font-size:20px;color:#8fe5ff;font-variant-numeric:tabular-nums}
+h2{font-size:15px;margin:0 0 12px}.wave{font-size:28px;font-weight:750;color:var(--cyan);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:#42cfff;margin:14px 0}
+.ends{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+select{width:100%;margin-top:8px}
+.note{font-size:12px;line-height:1.5;color:#b4c5d6}
+.legend{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.tag{font-size:11px;padding:5px 8px;border-radius:7px;background:#1b3046;color:#c8e5f6}
+#shots{display:flex;gap:9px;overflow-x:auto}#shots img{width:112px;height:84px;object-fit:cover;border-radius:9px;border:1px solid #38516a}
+footer{text-align:center;color:#6f879e;font-size:11px;padding:14px}
+</style>
+</head>
+<body>
+<main>
+ <div class="top"><div><h1>EXPLORADOR ESPECTRAL</h1><div class="sub">Laboratorio óptico experimental · Android</div></div><span class="pill" id="livePill">CÁMARA DESCONECTADA</span></div>
+
+ <section class="panel">
+  <h2>Vista en directo</h2>
+  <div class="preview">
+   <video id="video" autoplay playsinline muted></video>
+   <canvas id="view"></canvas>
+   <div class="placeholder" id="placeholder">◉<b>La cámara aparecerá aquí</b>Presiona «Iniciar cámara» y concede el permiso del navegador.</div>
+  </div>
+  <div class="actions">
+   <button class="primary" id="start">Iniciar cámara</button>
+   <button id="stop" disabled>Detener</button>
+   <button id="snap" disabled>Capturar</button>
+  </div>
+  <div class="status" id="status">Esperando autorización de cámara.</div>
+ </section>
+
+ <section class="panel">
+  <h2>Selector experimental de longitud de onda</h2>
+  <div class="wave"><span id="nm">550</span> <small style="font-size:14px">nm</small></div>
+  <input id="wavelength" type="range" min="400" max="1000" step="5" value="550">
+  <div class="ends"><span>400 nm · Visible</span><span>700 nm</span><span>1000 nm · NIR</span></div>
+  <div class="grid" style="margin-top:13px">
+   <div class="metric"><small>Frecuencia equivalente</small><strong id="freq">545.08</strong><small>THz</small></div>
+   <div class="metric"><small>Banda seleccionada</small><strong id="band" style="font-size:16px">Verde</strong><small id="bandnote">Luz visible</small></div>
+  </div>
+  <div class="legend"><span class="tag">Procesamiento visual</span><span class="tag">No es un filtro físico</span></div>
+ </section>
+
+ <section class="panel">
+  <h2>Modo de visualización</h2>
+  <select id="mode">
+   <option value="normal">Color original</option>
+   <option value="gray">Escala de grises</option>
+   <option value="red">Canal rojo</option>
+   <option value="green">Canal verde</option>
+   <option value="blue">Canal azul</option>
+   <option value="false">Color falso experimental</option>
+   <option value="invert">Negativo</option>
+  </select>
+  <p class="note">Estos modos transforman los píxeles que el sensor ya captó. No convierten la cámara en un detector de infrarrojo, ultravioleta, radio o calor. La respuesta real depende del sensor y de los filtros ópticos instalados.</p>
+ </section>
+
+ <section class="panel">
+  <h2>Lecturas en tiempo real</h2>
+  <div class="grid">
+   <div class="metric"><small>Rojo promedio</small><strong id="r">—</strong></div>
+   <div class="metric"><small>Verde promedio</small><strong id="g">—</strong></div>
+   <div class="metric"><small>Azul promedio</small><strong id="b">—</strong></div>
+   <div class="metric"><small>Intensidad luminosa</small><strong id="lum">—</strong></div>
+  </div>
+  <div class="status" id="measure">Las lecturas aparecerán al iniciar la cámara.</div>
+ </section>
+
+ <section class="panel">
+  <h2>Capturas de observación</h2>
+  <div id="shots" class="note">Todavía no hay capturas.</div>
+ </section>
+ <p class="note">Privacidad: el video se procesa localmente en esta página y no se envía a un servidor. El navegador solicitará permiso explícito. Para acceder a la cámara, abre esta aplicación desde un contexto seguro HTTPS (o localhost).</p>
+ <footer>Explorador Espectral · Prototipo 0.1 · Investigación experimental</footer>
+</main>
+<script>
+const video=document.querySelector('#video'), canvas=document.querySelector('#view'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+const raw=document.createElement('canvas'), rawctx=raw.getContext('2d',{willReadFrequently:true});
+const $=s=>document.querySelector(s);
+let stream=null, raf=0, lastMeasure=0, captures=0;
+function wavelength(){
+ const nm=+$ ('#wavelength').value;
+ $('#nm').textContent=nm;
+ $('#freq').textContent=(299792.458/nm).toFixed(2);
+ let name=nm<450?'Violeta':nm<495?'Azul':nm<570?'Verde':nm<590?'Amarillo':nm<620?'Naranja':nm<700?'Rojo':nm<800?'Borde rojo / NIR':'Infrarrojo cercano';
+ $('#band').textContent=name;
+ $('#bandnote').textContent=nm<=700?'Región visible aproximada':'Fuera de la visión humana; webcam no garantizada';
+}
+$('#wavelength').addEventListener('input',wavelength); wavelength();
+function setStatus(t){$('#status').textContent=t}
+async function start(){
+ if(!navigator.mediaDevices?.getUserMedia){setStatus('Este navegador no ofrece acceso a cámara. Abre la app mediante HTTPS en Chrome.');return}
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+  video.srcObject=stream; await video.play();
+  $('#placeholder').style.display='none';$('#view').style.display='block';
+  $('#start').disabled=true;$('#stop').disabled=false;$('#snap').disabled=false;
+  $('#livePill').textContent='CÁMARA ACTIVA';$('#livePill').style.color='#8fffc0';
+  setStatus('Cámara activa. Procesamiento local en el dispositivo.');
+  loop();
+ }catch(e){setStatus('No se pudo iniciar la cámara: '+(e.name==='NotAllowedError'?'permiso denegado. Autoriza la cámara en Chrome.':e.message))}
+}
+function stop(){
+ cancelAnimationFrame(raf); if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;
+ $('#start').disabled=false;$('#stop').disabled=true;$('#snap').disabled=true;
+ $('#livePill').textContent='CÁMARA DESCONECTADA';$('#livePill').style.color='#8fe5ff';setStatus('Cámara detenida.');
+}
+function loop(){
+ if(!stream||!video.videoWidth){raf=requestAnimationFrame(loop);return}
+ const w=canvas.width=raw.width=Math.min(video.videoWidth,720), h=canvas.height=raw.height=Math.round(w*video.videoHeight/video.videoWidth);
+ rawctx.drawImage(video,0,0,w,h);ctx.drawImage(raw,0,0);
+ const mode=$('#mode').value, img=ctx.getImageData(0,0,w,h),d=img.data;
+ let sr=0,sg=0,sb=0,n=0;
+ for(let i=0;i<d.length;i+=4){
+  let r=d[i],g=d[i+1],b=d[i+2];
+  if(mode==='gray'){let y=.299*r+.587*g+.114*b;r=g=b=y}
+  else if(mode==='red'){g=0;b=0}
+  else if(mode==='green'){r=0;b=0}
+  else if(mode==='blue'){r=0;g=0}
+  else if(mode==='invert'){r=255-r;g=255-g;b=255-b}
+  else if(mode==='false'){let y=.299*r+.587*g+.114*b;r=Math.min(255,y*2);g=Math.max(0,255-Math.abs(y-128)*2);b=Math.max(0,255-y*2)}
+  d[i]=r;d[i+1]=g;d[i+2]=b;
+  if((i/4)%80===0){sr+=r;sg+=g;sb+=b;n++}
+ }
+ ctx.putImageData(img,0,0);
+ const now=performance.now();
+ if(now-lastMeasure>300){$('#r').textContent=Math.round(sr/n);$('#g').textContent=Math.round(sg/n);$('#b').textContent=Math.round(sb/n);$('#lum').textContent=Math.round((.2126*sr+.7152*sg+.0722*sb)/n);$('#measure').textContent='Muestreo de píxeles de la imagen visible · '+w+' × '+h+' px';lastMeasure=now}
+ raf=requestAnimationFrame(loop);
+}
+$('#start').addEventListener('click',start);$('#stop').addEventListener('click',stop);
+$('#mode').addEventListener('change',()=>{});
+$('#snap').addEventListener('click',()=>{
+ if(!stream)return;const img=document.createElement('img');img.src=canvas.toDataURL('image/jpeg',.88);img.alt='Captura espectral experimental '+(++captures);
+ if(captures===1)$('#shots').textContent='';$('#shots').appendChild(img);
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&stream){setStatus('La pestaña está en segundo plano; el navegador puede pausar la cámara.')}});
+</script>
+</body></html>
